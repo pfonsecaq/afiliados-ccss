@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buscador de Afiliados Fallecidos – OPC-CCSS</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --crimson: #B73461;
+    --crimson-dark: #8A2149;
+    --crimson-deep: #3D0D1F;
+    --crimson-light: #D4608A;
+    --crimson-pale: #F5C6D8;
+    --paper: #FAF6F8;
+    --mist: #F0E8EC;
+    --text-body: #2C1520;
+    --text-muted: #7A5060;
+    --border: #E2C8D2;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--paper); color: var(--text-body); min-height: 100vh; }
+
+  .header {
+    background: linear-gradient(135deg, var(--crimson-deep) 0%, #6B1538 60%, var(--crimson) 100%);
+    padding: 2.5rem 2rem 2rem; position: relative; overflow: hidden;
+  }
+  .header::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse 60% 80% at 80% 20%, rgba(183,52,97,0.35) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, transparent, var(--crimson-light), rgba(255,255,255,0.6), var(--crimson-light), transparent);
+  }
+  .header-inner { max-width: 900px; margin: 0 auto; position: relative; z-index: 1; }
+  .header-eyebrow { font-size: 0.65rem; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(255,255,255,0.55); margin-bottom: 0.6rem; }
+  .header h1 { font-family: 'Cormorant Garamond', serif; font-size: clamp(1.6rem, 4vw, 2.5rem); font-weight: 600; color: #fff; line-height: 1.2; margin-bottom: 0.5rem; letter-spacing: 0.01em; }
+  .header h1 span { color: var(--crimson-pale); }
+  .header-sub { font-size: 0.82rem; font-weight: 300; color: rgba(255,255,255,0.65); max-width: 520px; line-height: 1.5; }
+  .loading-bar { background: rgba(255,255,255,0.08); border-radius: 0 0 8px 8px; padding: 0.5rem 2rem; max-width: 900px; margin: 0 auto; font-size: 0.73rem; color: rgba(255,255,255,0.5); display: flex; align-items: center; gap: 0.5rem; }
+  .loading-bar .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--crimson-light); animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity:0.3 } 50% { opacity:1 } }
+
+  .search-wrap { max-width: 900px; margin: 0 auto; padding: 1.8rem 2rem 0; }
+  .search-field { position: relative; display: flex; align-items: center; }
+  .search-field svg { position: absolute; left: 1.1rem; color: var(--crimson); pointer-events: none; }
+  #searchInput {
+    width: 100%; padding: 0.9rem 1.1rem 0.9rem 3rem;
+    font-family: 'DM Sans', sans-serif; font-size: 1rem;
+    color: var(--text-body); background: #fff; border: 2px solid var(--border);
+    border-radius: 10px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 12px rgba(183,52,97,0.07);
+  }
+  #searchInput:disabled { opacity: 0.5; cursor: not-allowed; }
+  #searchInput::placeholder { color: #b5919f; }
+  #searchInput:focus { border-color: var(--crimson); box-shadow: 0 0 0 3px rgba(183,52,97,0.12); }
+  .search-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 0.7rem; padding: 0 0.2rem; flex-wrap: wrap; gap: 0.3rem; }
+  .search-meta small { font-size: 0.76rem; color: var(--text-muted); }
+  .result-count { font-size: 0.76rem; font-weight: 600; color: var(--crimson); background: rgba(183,52,97,0.08); padding: 0.18rem 0.65rem; border-radius: 20px; border: 1px solid rgba(183,52,97,0.18); min-width: 120px; text-align: right; }
+
+  .table-wrap { max-width: 900px; margin: 1rem auto 0; padding: 0 2rem 3rem; }
+  .table-outer { background: #fff; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 20px rgba(183,52,97,0.07); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  thead { background: linear-gradient(90deg, var(--crimson-deep), #6B1538); }
+  thead th { padding: 0.85rem 1rem; text-align: left; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.75); }
+  tbody tr { border-bottom: 1px solid var(--mist); transition: background 0.15s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(183,52,97,0.04); }
+  tbody td { padding: 0.75rem 1rem; line-height: 1.4; }
+  .td-id { font-size: 0.78rem; font-weight: 500; color: var(--text-muted); white-space: nowrap; }
+  .td-name { font-weight: 500; color: var(--crimson-dark); }
+  .badge { display: inline-block; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; padding: 0.18rem 0.55rem; border-radius: 4px; text-transform: uppercase; }
+  .badge-fcl { background: #FFF5F8; color: #8A2149; border: 1px solid rgba(138,33,73,0.18); }
+  .badge-ropc { background: #F5F0FF; color: #4A2080; border: 1px solid rgba(74,32,128,0.18); }
+  mark { background: rgba(183,52,97,0.15); color: var(--crimson-dark); font-weight: 600; border-radius: 2px; padding: 0 1px; }
+  .empty-state { text-align: center; padding: 3.5rem 1rem; color: var(--text-muted); }
+  .empty-state .icon { font-size: 2.5rem; margin-bottom: 0.8rem; opacity: 0.5; }
+  .empty-state p { font-size: 0.88rem; line-height: 1.6; }
+  .empty-state strong { color: var(--crimson); display: block; font-size: 1rem; margin-bottom: 0.3rem; }
+  .footer { max-width: 900px; margin: 0 auto; padding: 0 2rem 2.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+  .footer-credit { font-size: 0.72rem; color: var(--text-muted); font-style: italic; }
+  .footer-credit strong { color: var(--crimson-dark); font-style: normal; }
+  .footer-line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 0 1rem; min-width: 40px; }
+  .limit-note { font-size: 0.72rem; color: var(--text-muted); text-align: center; padding: 0.6rem 1rem; border-top: 1px solid var(--mist); background: #fafafa; }
+  @media (max-width: 600px) {
+    .header, .search-wrap, .table-wrap, .footer { padding-left: 1rem; padding-right: 1rem; }
+    .td-id { display: none; }
+    thead th:first-child { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-inner">
+    <p class="header-eyebrow">OPC-CCSS · Datos Públicos</p>
+    <h1>Afiliados <span>fallecidos</span><br>con saldo pendiente</h1>
+    <p class="header-sub">Consulte si un familiar fallecido tiene fondos por reclamar. Datos actualizados al 31 de enero de 2026.</p>
+  </div>
+  <div class="loading-bar" id="loadingBar">
+    <span class="dot"></span>
+    <span id="loadingMsg">Cargando base de datos…</span>
+  </div>
+</header>
+
+<div class="search-wrap">
+  <div class="search-field">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input type="search" id="searchInput" placeholder="Cargando datos…" autocomplete="off" autocorrect="off" spellcheck="false" disabled>
+  </div>
+  <div class="search-meta">
+    <small id="searchHint">Cargando 14,759 registros…</small>
+    <span class="result-count" id="resultCount">Cargando…</span>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <div class="table-outer">
+    <table>
+      <thead>
+        <tr>
+          <th>Cédula</th><th>Nombre</th><th>Primer apellido</th><th>Segundo apellido</th><th>Fondo</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr><td colspan="5"><div class="empty-state">
+          <div class="icon">⏳</div>
+          <p><strong>Preparando el buscador</strong>Descargando base de datos…</p>
+        </div></td></tr>
+      </tbody>
+    </table>
+    <div id="limitNote" class="limit-note" style="display:none"></div>
+  </div>
+</div>
+
+<footer class="footer">
+  <span class="footer-credit"><strong>El Financiero</strong> · 2026 · Datos: CCSS / OPC-CCSS</span>
+  <span class="footer-line"></span>
+  <span class="footer-credit">Listado oficial · 31 de enero de 2026</span>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/gh/pfonsecaq/afiliados-ccss/data.js"></script>
+<script>
+const MAX_RESULTS = 200;
+let DATA = null;
+let NORM_DATA = null;
+
+function norm(str) {
+  if (!str) return '';
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+function escapeHtml(str) {
+  return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function highlight(str, terms) {
+  if (!terms.length || !str) return escapeHtml(str);
+  let result = escapeHtml(str);
+  terms.forEach(t => {
+    if (!t) return;
+    const re = new RegExp('(' + t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi');
+    result = result.replace(re, '<mark>$1</mark>');
+  });
+  return result;
+}
+
+function renderTable(results, query) {
+  const tbody = document.getElementById('tableBody');
+  const countEl = document.getElementById('resultCount');
+  const hintEl = document.getElementById('searchHint');
+  const limitNoteEl = document.getElementById('limitNote');
+  if (!query) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="icon">🔍</div><p><strong>Comience a escribir</strong>Busque por cédula, nombre o cualquier apellido</p></div></td></tr>`;
+    countEl.textContent = '14,759 registros';
+    hintEl.textContent = 'Empiece a escribir para buscar entre 14,759 registros';
+    limitNoteEl.style.display = 'none';
+    return;
+  }
+  if (results.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="icon">😶</div><p><strong>Sin resultados</strong>No se encontraron registros para "<em>${escapeHtml(query)}</em>"</p></div></td></tr>`;
+    countEl.textContent = '0 resultados';
+    hintEl.textContent = 'Intente con otro término';
+    limitNoteEl.style.display = 'none';
+    return;
+  }
+  const terms = query.split(/\s+/).filter(Boolean);
+  const limited = results.slice(0, MAX_RESULTS);
+  let html = '';
+  limited.forEach(idx => {
+    const r = DATA[idx];
+    const badgeClass = r[4] === 'FCL' ? 'badge-fcl' : 'badge-ropc';
+    html += `<tr>
+      <td class="td-id">${highlight(r[0], terms)}</td>
+      <td class="td-name">${highlight(r[1], terms)}</td>
+      <td>${highlight(r[2], terms)}</td>
+      <td>${highlight(r[3], terms)}</td>
+      <td><span class="badge ${badgeClass}">${r[4]}</span></td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+  countEl.textContent = results.length === 1 ? '1 resultado' : results.length.toLocaleString('es-CR') + ' resultados';
+  hintEl.textContent = limited.length < results.length
+    ? `Mostrando ${limited.length} de ${results.length.toLocaleString('es-CR')} — refine la búsqueda`
+    : `${limited.length} resultado${limited.length !== 1 ? 's' : ''} encontrado${limited.length !== 1 ? 's' : ''}`;
+  if (limited.length < results.length) {
+    limitNoteEl.style.display = 'block';
+    limitNoteEl.textContent = `Se muestran los primeros ${MAX_RESULTS} resultados. Escriba más para afinar.`;
+  } else {
+    limitNoteEl.style.display = 'none';
+  }
+}
+
+async function waitForData(maxMs = 10000) {
+  const start = Date.now();
+  while (!window.AFILIADOS_DATA) {
+    if (Date.now() - start > maxMs) throw new Error('Tiempo de espera agotado');
+    await new Promise(r => setTimeout(r, 100));
+  }
+  return window.AFILIADOS_DATA;
+}
+
+async function initData() {
+  try {
+    const raw = await waitForData();
+    if (!raw) throw new Error('data.js no cargó correctamente');
+    const binary = Uint8Array.from(atob(raw), c => c.charCodeAt(0));
+    const ds = new DecompressionStream('deflate');
+    const writer = ds.writable.getWriter();
+    writer.write(binary); writer.close();
+    const reader = ds.readable.getReader();
+    const chunks = [];
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+    const total = chunks.reduce((s, c) => s + c.length, 0);
+    const buf = new Uint8Array(total);
+    let off = 0;
+    for (const c of chunks) { buf.set(c, off); off += c.length; }
+    const packed = JSON.parse(new TextDecoder().decode(buf));
+    const {n, a1, a2, d} = packed;
+    DATA = d.map(r => [r[0], n[r[1]], a1[r[2]], a2[r[3]], r[4] === 0 ? 'FCL' : 'ROPC']);
+    NORM_DATA = DATA.map(r => norm(r[0] + ' ' + r[1] + ' ' + r[2] + ' ' + r[3]));
+
+    document.getElementById('loadingBar').style.display = 'none';
+    const input = document.getElementById('searchInput');
+    input.disabled = false;
+    input.placeholder = 'Busque por cédula, nombre o apellido…';
+    document.getElementById('resultCount').textContent = '14,759 registros';
+    document.getElementById('searchHint').textContent = 'Empiece a escribir para buscar entre 14,759 registros';
+    document.getElementById('tableBody').innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="icon">🔍</div><p><strong>Comience a escribir</strong>Busque por cédula, nombre o cualquier apellido</p></div></td></tr>`;
+  } catch(e) {
+    document.getElementById('loadingMsg').textContent = '⚠ Error al cargar datos. Verifique la URL del script.';
+    console.error(e);
+  }
+}
+
+let debounceTimer;
+document.getElementById('searchInput').addEventListener('input', function() {
+  if (!DATA) return;
+  clearTimeout(debounceTimer);
+  const raw = this.value.trim();
+  if (!raw) { renderTable([], ''); return; }
+  debounceTimer = setTimeout(() => {
+    const q = norm(raw);
+    const terms = q.split(/\s+/).filter(Boolean);
+    const results = [];
+    for (let i = 0; i < NORM_DATA.length; i++) {
+      if (terms.every(t => NORM_DATA[i].includes(t))) results.push(i);
+    }
+    renderTable(results, raw);
+  }, 80);
+});
+
+// Start loading immediately — no dependency on script tag order
+initData();
+</script>
+</body>
+</html>
